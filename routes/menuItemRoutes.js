@@ -9,6 +9,7 @@ import {
     updateMenuItemApproval,
     updateMenuItemAvailability,
     updateMyMenuItemAvailability,
+    adminDeleteMenuItem,
 } from "../controllers/menuItemController.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { authorizeRoles } from "../middleware/authorizeRoles.js";
@@ -73,6 +74,14 @@ router.delete(
     requireAuth,
     authorizeRoles("vendor"),
     deleteMyMenuItem
+);
+
+// Admin delete any menu item
+router.delete(
+    "/admin/:id",
+    requireAuth,
+    authorizeRoles("admin"),
+    adminDeleteMenuItem
 );
 
 export default router;
