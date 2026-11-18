@@ -445,3 +445,42 @@ export const updateMyMenuItem = async (req, res) => {
         });
     }
 };
+
+// Delete vendor's own menu item
+export const deleteMyMenuItem = async (req, res) => {
+    try {
+        const db = getDB();
+        const { id } = req.params;
+
+        if (!ObjectId.isValid(id)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid menu item ID.",
+            });
+        }
+
+        const result = await db.collection("menuItems").deleteOne({
+            _id: new ObjectId(id),
+            vendorId: req.user.id,
+        });
+
+        if (result.deletedCount === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Menu item not found or you do not own this item.",
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Menu item deleted successfully.",
+        });
+    } catch (error) {
+        console.error("Delete Menu Item Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to delete menu item.",
+        });
+    }
+};
