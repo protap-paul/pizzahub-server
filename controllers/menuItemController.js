@@ -485,6 +485,66 @@ export const deleteMyMenuItem = async (req, res) => {
     }
 };
 
+// Vendor update own menu item availability
+export const updateMyMenuItemAvailability = async (req, res) => {
+    try {
+        const db = getDB();
+        const { id } = req.params;
+        const { isAvailable } = req.body;
+
+        // Validate menu item ID
+        if (!ObjectId.isValid(id)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid menu item ID.",
+            });
+        }
+
+        // Validate availability value
+        if (typeof isAvailable !== "boolean") {
+            return res.status(400).json({
+                success: false,
+                message: "isAvailable must be true or false.",
+            });
+        }
+
+        // Update only vendor's own approved item
+        const result = await db.collection("menuItems").updateOne(
+            {
+                _id: new ObjectId(id),
+                vendorId: req.user.id,
+                status: "approved",
+            },
+            {
+                $set: {
+                    isAvailable,
+                    updatedAt: new Date(),
+                },
+            }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Approved menu item not found or you do not own this item.",
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Your menu item availability updated successfully.",
+            isAvailable,
+        });
+    } catch (error) {
+        console.error("Update My Menu Item Availability Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to update menu item availability.",
+        });
+    }
+};
+
 // Get all menu items for admin
 export const getAllMenuItems = async (req, res) => {
     try {

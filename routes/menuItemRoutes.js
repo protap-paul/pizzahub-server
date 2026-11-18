@@ -8,6 +8,7 @@ import {
     getAllMenuItems,
     updateMenuItemApproval,
     updateMenuItemAvailability,
+    updateMyMenuItemAvailability,
 } from "../controllers/menuItemController.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { authorizeRoles } from "../middleware/authorizeRoles.js";
@@ -43,6 +44,14 @@ router.patch(
     requireAuth,
     authorizeRoles("vendor"),
     updateMyMenuItem
+);
+
+// Vendor update own menu item availability
+router.patch(
+    "/my-items/:id/availability",
+    requireAuth,
+    authorizeRoles("vendor"),
+    updateMyMenuItemAvailability
 );
 
 router.patch(
