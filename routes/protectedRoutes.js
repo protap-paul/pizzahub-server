@@ -28,4 +28,18 @@ router.get(
     }
 );
 
+// Admin-only route
+router.get(
+    "/admin-only",
+    requireAuth,
+    authorizeRoles("admin"),
+    (req, res) => {
+        res.status(200).json({
+            success: true,
+            message: "Admin authorization successful!",
+            user: req.user,
+        });
+    }
+);
+
 export default router;
