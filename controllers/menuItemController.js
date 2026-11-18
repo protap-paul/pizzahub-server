@@ -295,3 +295,153 @@ export const getMyMenuItems = async (req, res) => {
         });
     }
 };
+
+// Update vendor's own menu item
+export const updateMyMenuItem = async (req, res) => {
+    try {
+        const db = getDB();
+        const { id } = req.params;
+
+        if (!ObjectId.isValid(id)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid menu item ID.",
+            });
+        }
+
+        const {
+            itemName,
+            category,
+            description,
+            price,
+            location,
+            images,
+        } = req.body;
+
+        const updateData = {};
+
+        if (itemName !== undefined) {
+            if (typeof itemName !== "string" || !itemName.trim()) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Item name must be valid.",
+                });
+            }
+            updateData.itemName = itemName.trim();
+        }
+
+        if (category !== undefined) {
+            const allowedCategories = [
+                "Classic",
+                "Vegetarian",
+                "Meat Lovers",
+                "Specialty/Gourmet",
+                "Sides/Appetizers",
+                "Beverages/Desserts",
+            ];
+
+            if (!allowedCategories.includes(category)) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid menu item category.",
+                });
+            }
+            updateData.category = category;
+        }
+
+        if (description !== undefined) {
+            if (
+                typeof description !== "string" ||
+                !description.trim()
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Description must be valid.",
+                });
+            }
+            updateData.description = description.trim();
+        }
+
+        if (price !== undefined) {
+            const itemPrice = Number(price);
+
+            if (!Number.isFinite(itemPrice) || itemPrice <= 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Price must be a valid positive number.",
+                });
+            }
+            updateData.price = itemPrice;
+        }
+
+        if (location !== undefined) {
+            if (
+                typeof location !== "string" ||
+                !location.trim()
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Location must be valid.",
+                });
+            }
+            updateData.location = location.trim();
+        }
+
+        if (images !== undefined) {
+            if (
+                !Array.isArray(images) ||
+                images.length === 0 ||
+                !images.every(
+                    (image) =>
+                        typeof image === "string" &&
+                        /^https?:\/\/.+/i.test(image)
+                )
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Please provide valid image URLs.",
+                });
+            }
+            updateData.images = images;
+        }
+
+        if (Object.keys(updateData).length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Please provide at least one valid field to update.",
+            });
+        }
+
+        updateData.updatedAt = new Date();
+
+        const result = await db.collection("menuItems").updateOne(
+            {
+                _id: new ObjectId(id),
+                vendorId: req.user.id,
+            },
+            {
+                $set: updateData,
+            }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Menu item not found or you do not own this item.",
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Menu item updated successfully.",
+            updatedFields: updateData,
+        });
+    } catch (error) {
+        console.error("Update Menu Item Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to update menu item.",
+        });
+    }
+};

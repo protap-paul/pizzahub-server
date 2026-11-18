@@ -3,6 +3,7 @@ import {
     getMenuItems,
     createMenuItem,
     getMyMenuItems,
+    updateMyMenuItem,
 } from "../controllers/menuItemController.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { authorizeRoles } from "../middleware/authorizeRoles.js";
@@ -24,6 +25,13 @@ router.post(
     requireAuth,
     authorizeRoles("vendor"),
     createMenuItem
+);
+
+router.patch(
+    "/:id",
+    requireAuth,
+    authorizeRoles("vendor"),
+    updateMyMenuItem
 );
 
 export default router;
