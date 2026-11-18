@@ -6,7 +6,8 @@ dotenv.config();
 const uri = process.env.MONGODB_URI;
 const dbName = process.env.DB_NAME;
 
-const client = new MongoClient(uri);
+export const client = new MongoClient(uri);
+export const authDB = client.db(dbName);
 
 let db;
 
