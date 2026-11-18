@@ -1,9 +1,8 @@
-import { success } from "better-auth";
-import { jwtVerify, createRemoteJWKset } from "jose";
+import { jwtVerify, createRemoteJWKSet } from "jose";
 
 const authBaseURL = process.env.BETTER_AUTH_URL;
 
-const JWKS = createRemoteJWKset(
+const JWKS = createRemoteJWKSet(
     new URL(`${authBaseURL}/api/auth/jwks`)
 );
 

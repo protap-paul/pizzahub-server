@@ -4,6 +4,7 @@ import { connectToMongoDB } from "./config/db.js";
 import menuItemRoutes from "./routes/menuItemRoutes.js";
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "./config/auth.js";
+import protectedRoutes from "./routes/protectedRoutes.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -23,6 +24,8 @@ app.use(express.json());
 
 // Routes 
 app.use("/api/menu-items", menuItemRoutes);
+
+app.use("/api/protected", protectedRoutes);
 
 // Test Route
 app.get("/", (req, res) => {

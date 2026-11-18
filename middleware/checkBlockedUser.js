@@ -1,15 +1,22 @@
 import { getDB } from "../config/db.js";
+import { ObjectId } from "mongodb";
 
 export const checkBlockedUser = async (req, res, next) => {
     try {
         const db = getDB();
 
+        const userId = req.user.id;
+
+        if (!ObjectId.isValid(userId)) {
+            return res.status(401).json({
+                success: false,
+                message: "Unauthorized: Invalid user ID.",
+            });
+        }
+
         const user = await db.collection("user").findOne(
             {
-                $or: [
-                    { _id: req.user.id },
-                    { id: req.user.id },
-                ],
+                _id: new ObjectId(userId),
             },
             {
                 projection: {
