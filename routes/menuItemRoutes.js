@@ -5,6 +5,7 @@ import {
     getMyMenuItems,
     updateMyMenuItem,
     deleteMyMenuItem,
+    getAllMenuItems,
 } from "../controllers/menuItemController.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { authorizeRoles } from "../middleware/authorizeRoles.js";
@@ -18,6 +19,13 @@ router.get(
     requireAuth,
     authorizeRoles("vendor"),
     getMyMenuItems
+);
+
+router.get(
+    "/admin/all",
+    requireAuth,
+    authorizeRoles("admin"),
+    getAllMenuItems
 );
 
 // Create menu item (Vendor only)
