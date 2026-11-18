@@ -562,3 +562,59 @@ export const getAllMenuItems = async (req, res) => {
         });
     }
 };
+
+// Admin approve or reject menu item
+export const updateMenuItemApproval = async (req, res) => {
+    try {
+        const db = getDB();
+        const { id } = req.params;
+        const { status } = req.body;
+
+        if (!ObjectId.isValid(id)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid menu item ID.",
+            });
+        }
+
+        if (!["approved", "rejected"].includes(status)) {
+            return res.status(400).json({
+                success: false,
+                message: "Status must be approved or rejected.",
+            });
+        }
+
+        const result = await db.collection("menuItems").updateOne(
+            {
+                _id: new ObjectId(id),
+                status: "pending",
+            },
+            {
+                $set: {
+                    status,
+                    updatedAt: new Date(),
+                },
+            }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Pending menu item not found or already reviewed.",
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: `Menu item ${status} successfully.`,
+            updatedStatus: status,
+        });
+    } catch (error) {
+        console.error("Update Menu Item Approval Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to update menu item approval.",
+        });
+    }
+};

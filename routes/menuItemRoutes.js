@@ -6,6 +6,7 @@ import {
     updateMyMenuItem,
     deleteMyMenuItem,
     getAllMenuItems,
+    updateMenuItemApproval,
 } from "../controllers/menuItemController.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { authorizeRoles } from "../middleware/authorizeRoles.js";
@@ -41,6 +42,13 @@ router.patch(
     requireAuth,
     authorizeRoles("vendor"),
     updateMyMenuItem
+);
+
+router.patch(
+    "/admin/:id/approval",
+    requireAuth,
+    authorizeRoles("admin"),
+    updateMenuItemApproval
 );
 
 router.delete(
