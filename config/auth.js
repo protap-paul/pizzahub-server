@@ -13,6 +13,10 @@ export const auth = betterAuth({
 
     secret: process.env.BETTER_AUTH_SECRET,
 
+    trustedOrigins: [
+        process.env.CLIENT_URL || "http://localhost:3000",
+    ],
+
     emailAndPassword: {
         enabled: true,
         minPasswordLength: 6,
