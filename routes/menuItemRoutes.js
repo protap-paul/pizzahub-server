@@ -1,11 +1,22 @@
 import express from "express";
-import { getMenuItems, createMenuItem, } from "../controllers/menuItemController.js";
+import {
+    getMenuItems,
+    createMenuItem,
+    getMyMenuItems,
+} from "../controllers/menuItemController.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { authorizeRoles } from "../middleware/authorizeRoles.js";
 
 const router = express.Router();
 
 router.get("/", getMenuItems);
+
+router.get(
+    "/my-items",
+    requireAuth,
+    authorizeRoles("vendor"),
+    getMyMenuItems
+);
 
 // Create menu item (Vendor only)
 router.post(

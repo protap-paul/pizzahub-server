@@ -245,3 +245,53 @@ export const createMenuItem = async (req, res) => {
         });
     }
 };
+
+// Get logged-in vendor's menu items
+export const getMyMenuItems = async (req, res) => {
+    try {
+        const db = getDB();
+
+        const page = Math.max(1, Number(req.query.page) || 1);
+        const limit = Math.min(
+            50,
+            Math.max(1, Number(req.query.limit) || 10)
+        );
+
+        const skip = (page - 1) * limit;
+
+        const query = {
+            vendorId: req.user.id,
+        };
+
+        const totalItems = await db
+            .collection("menuItems")
+            .countDocuments(query);
+
+        const menuItems = await db
+            .collection("menuItems")
+            .find(query)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit)
+            .toArray();
+
+        return res.status(200).json({
+            success: true,
+            message: "Your menu items retrieved successfully.",
+            pagination: {
+                currentPage: page,
+                totalPages: Math.ceil(totalItems / limit),
+                totalItems,
+                limit,
+            },
+            menuItems,
+        });
+    } catch (error) {
+        console.error("Get My Menu Items Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to retrieve your menu items.",
+        });
+    }
+};
