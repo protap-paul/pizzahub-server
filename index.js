@@ -5,6 +5,7 @@ import menuItemRoutes from "./routes/menuItemRoutes.js";
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "./config/auth.js";
 import protectedRoutes from "./routes/protectedRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -26,6 +27,8 @@ app.use(express.json());
 app.use("/api/menu-items", menuItemRoutes);
 
 app.use("/api/protected", protectedRoutes);
+
+app.use("/api/users", userRoutes);
 
 // Test Route
 app.get("/", (req, res) => {
