@@ -618,3 +618,59 @@ export const updateMenuItemApproval = async (req, res) => {
         });
     }
 };
+
+// Admin update menu item availability
+export const updateMenuItemAvailability = async (req, res) => {
+    try {
+        const db = getDB();
+        const { id } = req.params;
+        const { isAvailable } = req.body;
+
+        if (!ObjectId.isValid(id)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid menu item ID.",
+            });
+        }
+
+        if (typeof isAvailable !== "boolean") {
+            return res.status(400).json({
+                success: false,
+                message: "isAvailable must be true or false.",
+            });
+        }
+
+        const result = await db.collection("menuItems").updateOne(
+            {
+                _id: new ObjectId(id),
+                status: "approved",
+            },
+            {
+                $set: {
+                    isAvailable,
+                    updatedAt: new Date(),
+                },
+            }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Approved menu item not found.",
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: `Menu item availability updated successfully.`,
+            isAvailable,
+        });
+    } catch (error) {
+        console.error("Update Menu Item Availability Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to update menu item availability.",
+        });
+    }
+};
