@@ -25,6 +25,14 @@ export async function connectToMongoDB() {
     }
 };
 
+export function getDB() {
+    if (!db) {
+        throw new Error("Database is not connected!");
+    }
+
+    return db;
+}
+
 export async function disconnectFromMongoDB() {
     await client.close();
 };
