@@ -6,6 +6,7 @@ import {
     getMyOrders,
     cancelMyOrder,
     getAllOrders,
+    adminDeleteOrder,
 } from "../controllers/orderController.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { authorizeRoles } from "../middleware/authorizeRoles.js";
@@ -56,6 +57,14 @@ router.patch(
     requireAuth,
     authorizeRoles("customer"),
     cancelMyOrder
+);
+
+// Admin: Delete any order
+router.delete(
+    "/admin/:id",
+    requireAuth,
+    authorizeRoles("admin"),
+    adminDeleteOrder
 );
 
 export default router;

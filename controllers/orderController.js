@@ -390,3 +390,44 @@ export const getAllOrders = async (req, res) => {
         });
     }
 };
+
+// Admin: Delete any order
+export const adminDeleteOrder = async (req, res) => {
+    try {
+        const db = getDB();
+
+        const { id } = req.params;
+
+        // Validate order ID
+        if (!ObjectId.isValid(id)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid order ID.",
+            });
+        }
+
+        // Delete order
+        const result = await db.collection("orders").deleteOne({
+            _id: new ObjectId(id),
+        });
+
+        if (result.deletedCount === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Order not found.",
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Order deleted successfully.",
+        });
+    } catch (error) {
+        console.error("Admin Delete Order Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to delete order.",
+        });
+    }
+};
