@@ -5,6 +5,7 @@ import {
     updateVendorOrderStatus,
     getMyOrders,
     cancelMyOrder,
+    getAllOrders,
 } from "../controllers/orderController.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { authorizeRoles } from "../middleware/authorizeRoles.js";
@@ -32,6 +33,14 @@ router.get(
     requireAuth,
     authorizeRoles("customer"),
     getMyOrders
+);
+
+// Admin: Get all customer orders
+router.get(
+    "/admin/all",
+    requireAuth,
+    authorizeRoles("admin"),
+    getAllOrders
 );
 
 router.patch(
