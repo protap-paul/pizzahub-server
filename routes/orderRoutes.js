@@ -2,6 +2,7 @@ import express from "express";
 import {
     createOrder,
     getVendorOrders,
+    updateVendorOrderStatus,
 } from "../controllers/orderController.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { authorizeRoles } from "../middleware/authorizeRoles.js";
@@ -21,6 +22,13 @@ router.get(
     requireAuth,
     authorizeRoles("vendor"),
     getVendorOrders
+);
+
+router.patch(
+    "/vendor/:id/status",
+    requireAuth,
+    authorizeRoles("vendor"),
+    updateVendorOrderStatus
 );
 
 export default router;
