@@ -1,5 +1,8 @@
 import express from "express";
-import { createOrder } from "../controllers/orderController.js";
+import {
+    createOrder,
+    getVendorOrders,
+} from "../controllers/orderController.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { authorizeRoles } from "../middleware/authorizeRoles.js";
 
@@ -11,6 +14,13 @@ router.post(
     requireAuth,
     authorizeRoles("customer"),
     createOrder
+);
+
+router.get(
+    "/vendor",
+    requireAuth,
+    authorizeRoles("vendor"),
+    getVendorOrders
 );
 
 export default router;
