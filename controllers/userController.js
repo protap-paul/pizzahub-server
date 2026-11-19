@@ -113,3 +113,81 @@ export const updateMyProfile = async (req, res) => {
         });
     }
 };
+
+// Admin get all users
+export const getAllUsers = async (req, res) => {
+    try {
+        const db = getDB();
+
+        const page = Math.max(1, Number(req.query.page) || 1);
+        const limit = Math.min(
+            50,
+            Math.max(1, Number(req.query.limit) || 10)
+        );
+
+        const skip = (page - 1) * limit;
+
+        // Get all users except sensitive authentication data
+        const { role, search } = req.query;
+
+        const query = {};
+
+        // Filter by role
+        if (role && ["customer", "vendor", "admin"].includes(role)) {
+            query.role = role;
+        }
+
+        // Search by name or email
+        if (search && typeof search === "string" && search.trim()) {
+            const searchRegex = new RegExp(
+                search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+                "i"
+            );
+
+            query.$or = [
+                { name: searchRegex },
+                { email: searchRegex },
+            ];
+        }
+
+        const totalUsers = await db.collection("user").countDocuments(query);
+
+        const users = await db
+            .collection("user")
+            .find(query)
+            .project({
+                name: 1,
+                email: 1,
+                image: 1,
+                role: 1,
+                isBlocked: 1,
+                businessName: 1,
+                subscriptionPlan: 1,
+                subscriptionExpiresAt: 1,
+                createdAt: 1,
+            })
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit)
+            .toArray();
+
+        return res.status(200).json({
+            success: true,
+            message: "All users retrieved successfully.",
+            pagination: {
+                currentPage: page,
+                totalPages: Math.ceil(totalUsers / limit),
+                totalUsers,
+                limit,
+            },
+            users,
+        });
+    } catch (error) {
+        console.error("Get All Users Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to retrieve users.",
+        });
+    }
+};
