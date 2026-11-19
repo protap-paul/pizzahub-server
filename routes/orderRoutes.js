@@ -3,6 +3,7 @@ import {
     createOrder,
     getVendorOrders,
     updateVendorOrderStatus,
+    getMyOrders,
 } from "../controllers/orderController.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { authorizeRoles } from "../middleware/authorizeRoles.js";
@@ -22,6 +23,14 @@ router.get(
     requireAuth,
     authorizeRoles("vendor"),
     getVendorOrders
+);
+
+// Customer: Get my orders
+router.get(
+    "/my-orders",
+    requireAuth,
+    authorizeRoles("customer"),
+    getMyOrders
 );
 
 router.patch(

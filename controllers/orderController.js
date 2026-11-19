@@ -226,3 +226,54 @@ export const updateVendorOrderStatus = async (req, res) => {
         });
     }
 };
+
+// Customer: Get all orders placed by the logged-in customer
+export const getMyOrders = async (req, res) => {
+    try {
+        const db = getDB();
+
+        const page = Math.max(1, Number(req.query.page) || 1);
+        const limit = Math.min(
+            50,
+            Math.max(1, Number(req.query.limit) || 10)
+        );
+
+        const skip = (page - 1) * limit;
+
+        // Only retrieve the logged-in customer's orders
+        const query = {
+            customerId: req.user.id,
+        };
+
+        const totalOrders = await db
+            .collection("orders")
+            .countDocuments(query);
+
+        const orders = await db
+            .collection("orders")
+            .find(query)
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit)
+            .toArray();
+
+        return res.status(200).json({
+            success: true,
+            message: "Your orders retrieved successfully.",
+            pagination: {
+                currentPage: page,
+                totalPages: Math.ceil(totalOrders / limit),
+                totalOrders,
+                limit,
+            },
+            orders,
+        });
+    } catch (error) {
+        console.error("Get My Orders Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to retrieve your orders.",
+        });
+    }
+};
