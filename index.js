@@ -7,6 +7,7 @@ import { auth } from "./config/auth.js";
 import protectedRoutes from "./routes/protectedRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
+import dashboardRoutes from "./routes/dashboardRoutes.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -32,6 +33,8 @@ app.use("/api/protected", protectedRoutes);
 app.use("/api/users", userRoutes);
 
 app.use("/api/orders", orderRoutes);
+
+app.use("/api/dashboard", dashboardRoutes);
 
 // Test Route
 app.get("/", (req, res) => {
