@@ -191,3 +191,109 @@ export const getAllUsers = async (req, res) => {
         });
     }
 };
+
+// Admin block a user
+export const blockUser = async (req, res) => {
+    try {
+        const db = getDB();
+        const { id } = req.params;
+
+        // Validate user ID
+        if (!ObjectId.isValid(id)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid user ID.",
+            });
+        }
+
+        // Prevent admin from blocking themselves
+        if (id === req.user.id) {
+            return res.status(400).json({
+                success: false,
+                message: "You cannot block your own account.",
+            });
+        }
+
+        // Block user
+        const result = await db.collection("user").updateOne(
+            {
+                _id: new ObjectId(id),
+                role: { $in: ["customer", "vendor"] },
+            },
+            {
+                $set: {
+                    isBlocked: true,
+                    updatedAt: new Date(),
+                },
+            }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Customer or Vendor not found.",
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "User blocked successfully.",
+        });
+    } catch (error) {
+        console.error("Block User Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to block user.",
+        });
+    }
+};
+
+// Admin unblock a user
+export const unblockUser = async (req, res) => {
+    try {
+        const db = getDB();
+        const { id } = req.params;
+
+        // Validate user ID
+        if (!ObjectId.isValid(id)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid user ID.",
+            });
+        }
+
+        // Unblock user
+        const result = await db.collection("user").updateOne(
+            {
+                _id: new ObjectId(id),
+                role: { $in: ["customer", "vendor"] },
+            },
+            {
+                $set: {
+                    isBlocked: false,
+                    updatedAt: new Date(),
+                },
+            }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Customer or Vendor not found.",
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "User unblocked successfully.",
+        });
+    } catch (error) {
+        console.error("Unblock User Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to unblock user.",
+        });
+    }
+};
