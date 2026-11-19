@@ -4,6 +4,7 @@ import {
     getVendorOrders,
     updateVendorOrderStatus,
     getMyOrders,
+    cancelMyOrder,
 } from "../controllers/orderController.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { authorizeRoles } from "../middleware/authorizeRoles.js";
@@ -38,6 +39,14 @@ router.patch(
     requireAuth,
     authorizeRoles("vendor"),
     updateVendorOrderStatus
+);
+
+// Customer: Cancel my pending order
+router.patch(
+    "/my-orders/:id/cancel",
+    requireAuth,
+    authorizeRoles("customer"),
+    cancelMyOrder
 );
 
 export default router;

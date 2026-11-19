@@ -277,3 +277,54 @@ export const getMyOrders = async (req, res) => {
         });
     }
 };
+
+// Customer: Cancel their own pending order
+export const cancelMyOrder = async (req, res) => {
+    try {
+        const db = getDB();
+
+        const { id } = req.params;
+
+        // Validate order ID
+        if (!ObjectId.isValid(id)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid order ID.",
+            });
+        }
+
+        // Cancel only the customer's own pending order
+        const result = await db.collection("orders").updateOne(
+            {
+                _id: new ObjectId(id),
+                customerId: req.user.id,
+                status: "pending",
+            },
+            {
+                $set: {
+                    status: "cancelled",
+                    updatedAt: new Date(),
+                },
+            }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Pending order not found or cannot be cancelled.",
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Order cancelled successfully.",
+        });
+    } catch (error) {
+        console.error("Cancel My Order Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to cancel your order.",
+        });
+    }
+};
