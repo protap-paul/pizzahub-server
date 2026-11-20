@@ -297,3 +297,157 @@ export const unblockUser = async (req, res) => {
         });
     }
 };
+
+// Customer added a Favorite Item
+export const addFavorite = async (req, res) => {
+    try {
+        const db = getDB();
+        const { itemId } = req.params;
+
+        if (!ObjectId.isValid(itemId)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid menu item ID.",
+            });
+        }
+
+        const menuItem = await db.collection("menuItems").findOne({
+            _id: new ObjectId(itemId),
+            status: "approved",
+            isAvailable: true,
+        });
+
+        if (!menuItem) {
+            return res.status(404).json({
+                success: false,
+                message: "Menu item not found or unavailable.",
+            });
+        }
+
+        const result = await db.collection("user").updateOne(
+            {
+                _id: new ObjectId(req.user.id),
+            },
+            {
+                $addToSet: {
+                    favoriteItems: new ObjectId(itemId),
+                },
+            }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found.",
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Item added to favorites successfully.",
+        });
+    } catch (error) {
+        console.error("Add Favorite Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to add favorite item.",
+        });
+    }
+};
+
+// Customer remove a Favorite Item
+export const removeFavorite = async (req, res) => {
+    try {
+        const db = getDB();
+        const { itemId } = req.params;
+
+        if (!ObjectId.isValid(itemId)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid menu item ID.",
+            });
+        }
+
+        const result = await db.collection("user").updateOne(
+            {
+                _id: new ObjectId(req.user.id),
+            },
+            {
+                $pull: {
+                    favoriteItems: new ObjectId(itemId),
+                },
+            }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found.",
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Item removed from favorites successfully.",
+        });
+    } catch (error) {
+        console.error("Remove Favorite Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to remove favorite item.",
+        });
+    }
+};
+
+// Customer menage Favorite Items
+export const getMyFavorites = async (req, res) => {
+    try {
+        const db = getDB();
+
+        const user = await db.collection("user").findOne(
+            {
+                _id: new ObjectId(req.user.id),
+            },
+            {
+                projection: {
+                    favoriteItems: 1,
+                },
+            }
+        );
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found.",
+            });
+        }
+
+        const favoriteIds = user.favoriteItems || [];
+
+        const favorites = await db
+            .collection("menuItems")
+            .find({
+                _id: { $in: favoriteIds },
+                status: "approved",
+                isAvailable: true,
+            })
+            .sort({ createdAt: -1 })
+            .toArray();
+
+        return res.status(200).json({
+            success: true,
+            message: "Favorite items retrieved successfully.",
+            totalFavorites: favorites.length,
+            favorites,
+        });
+    } catch (error) {
+        console.error("Get Favorites Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to retrieve favorite items.",
+        });
+    }
+};

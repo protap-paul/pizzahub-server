@@ -6,6 +6,9 @@ import {
     getAllUsers,
     blockUser,
     unblockUser,
+    addFavorite,
+    removeFavorite,
+    getMyFavorites,
 } from "../controllers/userController.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { authorizeRoles } from "../middleware/authorizeRoles.js";
@@ -21,6 +24,13 @@ router.get(
     requireAuth,
     authorizeRoles("admin"),
     getAllUsers
+);
+
+router.get(
+    "/favorites",
+    requireAuth,
+    authorizeRoles("customer"),
+    getMyFavorites
 );
 
 // Update logged-in user's profile
@@ -40,6 +50,20 @@ router.patch(
     requireAuth,
     authorizeRoles("admin"),
     unblockUser
+);
+
+router.post(
+    "/favorites/:itemId",
+    requireAuth,
+    authorizeRoles("customer"),
+    addFavorite
+);
+
+router.delete(
+    "/favorites/:itemId",
+    requireAuth,
+    authorizeRoles("customer"),
+    removeFavorite
 );
 
 export default router;
