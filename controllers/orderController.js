@@ -93,6 +93,17 @@ export const createOrder = async (req, res) => {
             deliveryAddress: deliveryAddress.trim(),
             message: typeof message === "string" ? message.trim() : "",
             status: "pending",
+
+            // Order Status History
+            statusHistory: [
+                {
+                    status: "pending",
+                    changedAt: new Date(),
+                    changedBy: req.user.id,
+                    note: "Order placed successfully.",
+                },
+            ],
+
             createdAt: new Date(),
             updatedAt: new Date(),
         };
@@ -203,6 +214,14 @@ export const updateVendorOrderStatus = async (req, res) => {
                     status,
                     updatedAt: new Date(),
                 },
+                $push: {
+                    statusHistory: {
+                        status,
+                        changedAt: new Date(),
+                        changedBy: req.user.id,
+                        note: `Order ${status} by vendor.`,
+                    },
+                },
             }
         );
 
@@ -304,6 +323,14 @@ export const cancelMyOrder = async (req, res) => {
                 $set: {
                     status: "cancelled",
                     updatedAt: new Date(),
+                },
+                $push: {
+                    statusHistory: {
+                        status: "cancelled",
+                        changedAt: new Date(),
+                        changedBy: req.user.id,
+                        note: "Order cancelled by customer.",
+                    },
                 },
             }
         );
