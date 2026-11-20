@@ -7,11 +7,11 @@ export const getAllTransactions = async (req, res) => {
         const db = getDB();
 
         // Pagination
-        const page = Math.max(1, Number(req.query.page) || 1);
-        const limit = Math.min(
-            50,
-            Math.max(1, Number(req.query.limit) || 10)
-        );
+        const pageInput = Number(req.query.page) || 1;
+        const limitInput = Number(req.query.limit) || 10;
+
+        const page = Math.max(1, Math.floor(pageInput));
+        const limit = Math.min(50, Math.max(1, Math.floor(limitInput)));
 
         const skip = (page - 1) * limit;
 
@@ -20,10 +20,21 @@ export const getAllTransactions = async (req, res) => {
 
         const query = {};
 
-        if (
-            status &&
-            ["completed", "pending", "failed", "refunded"].includes(status)
-        ) {
+        const allowedStatuses = [
+            "completed",
+            "pending",
+            "failed",
+            "refunded",
+        ];
+
+        if (status) {
+            if (!allowedStatuses.includes(status)) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid transaction status filter.",
+                });
+            }
+
             query.status = status;
         }
 
