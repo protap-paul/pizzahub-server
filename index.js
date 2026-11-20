@@ -1,3 +1,4 @@
+import "./config/stripe.js";
 import express from "express";
 import cors from "cors";
 import { connectToMongoDB } from "./config/db.js";
@@ -8,6 +9,9 @@ import protectedRoutes from "./routes/protectedRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
+import subscriptionRoutes from "./routes/subscriptionRoutes.js";
+import { handleStripeWebhook } from "./controllers/stripeWebhookController.js";
+import transactionRoutes from "./routes/transactionRoutes.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -19,6 +23,12 @@ app.use(cors({
     origin: process.env.CLIENT_URL || "http://localhost:3000",
     credentials: true,
 }));
+
+app.post(
+    "/api/stripe/webhook",
+    express.raw({ type: "application/json" }),
+    handleStripeWebhook
+);
 
 // Better Auth handler 
 app.all("/api/auth/*splat", toNodeHandler(auth));
@@ -35,6 +45,10 @@ app.use("/api/users", userRoutes);
 app.use("/api/orders", orderRoutes);
 
 app.use("/api/dashboard", dashboardRoutes);
+
+app.use("/api/subscriptions", subscriptionRoutes);
+
+app.use("/api/transactions", transactionRoutes);
 
 // Test Route
 app.get("/", (req, res) => {
