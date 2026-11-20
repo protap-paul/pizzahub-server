@@ -169,3 +169,69 @@ export const getVendorDashboardStats = async (req, res) => {
         });
     }
 };
+
+// Customer: Get dashboard overview statistics
+export const getCustomerDashboardStats = async (req, res) => {
+    try {
+        const db = getDB();
+
+        // Total orders placed by this customer
+        const totalOrders = await db
+            .collection("orders")
+            .countDocuments({
+                customerId: req.user.id,
+            });
+
+        // Pending orders placed by this customer
+        const pendingOrders = await db
+            .collection("orders")
+            .countDocuments({
+                customerId: req.user.id,
+                status: "pending",
+            });
+
+        // Accepted orders placed by this customer
+        const acceptedOrders = await db
+            .collection("orders")
+            .countDocuments({
+                customerId: req.user.id,
+                status: "accepted",
+            });
+
+        // Rejected orders placed by this customer
+        const rejectedOrders = await db
+            .collection("orders")
+            .countDocuments({
+                customerId: req.user.id,
+                status: "rejected",
+            });
+
+        // Cancelled orders placed by this customer
+        const cancelledOrders = await db
+            .collection("orders")
+            .countDocuments({
+                customerId: req.user.id,
+                status: "cancelled",
+            });
+
+        return res.status(200).json({
+            success: true,
+            message: "Customer dashboard statistics retrieved successfully.",
+            stats: {
+                totalOrders,
+                pendingOrders,
+                acceptedOrders,
+                rejectedOrders,
+                cancelledOrders,
+            },
+        });
+
+    } catch (error) {
+        console.error("Customer Dashboard Stats Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to retrieve customer dashboard statistics.",
+        });
+    }
+};

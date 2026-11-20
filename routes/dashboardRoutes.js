@@ -2,6 +2,7 @@ import express from "express";
 import {
     getAdminDashboardStats,
     getVendorDashboardStats,
+    getCustomerDashboardStats,
 } from "../controllers/dashboardController.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { authorizeRoles } from "../middleware/authorizeRoles.js";
@@ -22,6 +23,14 @@ router.get(
     requireAuth,
     authorizeRoles("vendor"),
     getVendorDashboardStats
+);
+
+// Customer Dashboard Statistics
+router.get(
+    "/customer",
+    requireAuth,
+    authorizeRoles("customer"),
+    getCustomerDashboardStats
 );
 
 export default router;
