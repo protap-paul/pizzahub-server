@@ -10,6 +10,8 @@ import {
     updateMenuItemAvailability,
     updateMyMenuItemAvailability,
     adminDeleteMenuItem,
+    addMenuItemReview,
+    getMenuItemReviews,
 } from "../controllers/menuItemController.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { authorizeRoles } from "../middleware/authorizeRoles.js";
@@ -32,12 +34,25 @@ router.get(
     getAllMenuItems
 );
 
+router.get(
+    "/:itemId/reviews",
+    getMenuItemReviews
+);
+
 // Create menu item (Vendor only)
 router.post(
     "/",
     requireAuth,
     authorizeRoles("vendor"),
     createMenuItem
+);
+
+// Review for item
+router.post(
+    "/:itemId/reviews",
+    requireAuth,
+    authorizeRoles("customer"),
+    addMenuItemReview
 );
 
 router.patch(

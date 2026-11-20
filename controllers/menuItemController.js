@@ -774,3 +774,204 @@ export const adminDeleteMenuItem = async (req, res) => {
         });
     }
 };
+
+// Customer can Review the items
+export const addMenuItemReview = async (req, res) => {
+    try {
+        const db = getDB();
+        const { itemId } = req.params;
+        const { rating, comment } = req.body;
+
+        // Validate Menu Item ID
+        if (!ObjectId.isValid(itemId)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid menu item ID.",
+            });
+        }
+
+        // Validate Rating
+        if (
+            !Number.isInteger(rating) ||
+            rating < 1 ||
+            rating > 5
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Rating must be an integer between 1 and 5.",
+            });
+        }
+
+        // Validate Comment
+        if (
+            typeof comment !== "string" ||
+            !comment.trim() ||
+            comment.trim().length > 500
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Comment is required and must be within 500 characters.",
+            });
+        }
+
+        // Check Accepted Order
+        const acceptedOrder = await db.collection("orders").findOne({
+            itemId: new ObjectId(itemId),
+            customerId: req.user.id,
+            status: "accepted",
+        });
+
+        if (!acceptedOrder) {
+            return res.status(403).json({
+                success: false,
+                message: "You can review only items you have an accepted order for.",
+            });
+        }
+
+        // Get Customer Information
+        const customer = await db.collection("user").findOne(
+            {
+                _id: new ObjectId(req.user.id),
+            },
+            {
+                projection: {
+                    name: 1,
+                },
+            }
+        );
+
+        if (!customer) {
+            return res.status(404).json({
+                success: false,
+                message: "Customer not found.",
+            });
+        }
+
+        // Add Review Without Allowing Duplicates
+        const result = await db.collection("menuItems").updateOne(
+            {
+                _id: new ObjectId(itemId),
+                "reviews.customerId": { $ne: req.user.id },
+            },
+            {
+                $push: {
+                    reviews: {
+                        customerId: req.user.id,
+                        customerName: customer.name,
+                        rating,
+                        comment: comment.trim(),
+                        createdAt: new Date(),
+                    },
+                },
+            }
+        );
+
+        if (result.matchedCount === 0) {
+            const menuItem = await db.collection("menuItems").findOne({
+                _id: new ObjectId(itemId),
+            });
+
+            if (!menuItem) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Menu item not found.",
+                });
+            }
+
+            return res.status(409).json({
+                success: false,
+                message: "You have already reviewed this item.",
+            });
+        }
+
+        // Calculate Average Rating
+        const reviews = await db.collection("menuItems").findOne(
+            { _id: new ObjectId(itemId) },
+            { projection: { reviews: 1 } }
+        );
+
+        const totalReviews = reviews.reviews.length;
+
+        const averageRating =
+            reviews.reviews.reduce(
+                (total, review) => total + review.rating,
+                0
+            ) / totalReviews;
+
+        await db.collection("menuItems").updateOne(
+            { _id: new ObjectId(itemId) },
+            {
+                $set: {
+                    totalReviews,
+                    averageRating: Number(averageRating.toFixed(1)),
+                },
+            }
+        );
+
+        return res.status(201).json({
+            success: true,
+            message: "Review added successfully.",
+            totalReviews,
+            averageRating: Number(averageRating.toFixed(1)),
+        });
+    } catch (error) {
+        console.error("Add Review Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to add review.",
+        });
+    }
+};
+
+
+export const getMenuItemReviews = async (req, res) => {
+    try {
+        const db = getDB();
+        const { itemId } = req.params;
+
+        if (!ObjectId.isValid(itemId)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid menu item ID.",
+            });
+        }
+
+        const menuItem = await db.collection("menuItems").findOne(
+            {
+                _id: new ObjectId(itemId),
+            },
+            {
+                projection: {
+                    itemName: 1,
+                    reviews: 1,
+                    averageRating: 1,
+                    totalReviews: 1,
+                },
+            }
+        );
+
+        if (!menuItem) {
+            return res.status(404).json({
+                success: false,
+                message: "Menu item not found.",
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Reviews retrieved successfully.",
+            itemName: menuItem.itemName,
+            totalReviews: menuItem.totalReviews || 0,
+            averageRating: menuItem.averageRating || 0,
+            reviews: menuItem.reviews || [],
+        });
+    } catch (error) {
+        console.error("Get Reviews Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to retrieve reviews.",
+        });
+    }
+};
