@@ -15,6 +15,12 @@ const updateVendorSubscription = async (subscription, plan) => {
 
     const updateData = {
         subscriptionPlan: plan,
+        stripeSubscriptionId:
+            plan === "premium" ? subscription.id : null,
+        subscriptionCancelAtPeriodEnd:
+            plan === "premium"
+                ? subscription.cancel_at_period_end
+                : false,
         updatedAt: new Date(),
     };
 

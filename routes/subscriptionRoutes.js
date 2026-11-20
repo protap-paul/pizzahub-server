@@ -1,6 +1,9 @@
 
 import express from "express";
-import { createCheckoutSession } from "../controllers/subscriptionController.js";
+import {
+    createCheckoutSession,
+    cancelPremiumSubscription,
+} from "../controllers/subscriptionController.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { authorizeRoles } from "../middleware/authorizeRoles.js";
 
@@ -12,6 +15,14 @@ router.post(
     requireAuth,
     authorizeRoles("vendor"),
     createCheckoutSession
+);
+
+// Vendor: Cancel Premium Subscription
+router.patch(
+    "/cancel",
+    requireAuth,
+    authorizeRoles("vendor"),
+    cancelPremiumSubscription
 );
 
 export default router;
