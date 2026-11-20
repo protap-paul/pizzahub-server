@@ -1,3 +1,4 @@
+import { sendEmail } from "../utils/sendEmail.js";
 import { ObjectId } from "mongodb";
 import { getDB } from "../config/db.js";
 
@@ -109,6 +110,40 @@ export const createOrder = async (req, res) => {
         };
 
         const result = await db.collection("orders").insertOne(newOrder);
+
+
+        // Get vendor and customer information
+        const [vendor, customer] = await Promise.all([
+            db.collection("user").findOne(
+                { _id: new ObjectId(menuItem.vendorId) },
+                { projection: { name: 1, email: 1 } }
+            ),
+            db.collection("user").findOne(
+                { _id: new ObjectId(req.user.id) },
+                { projection: { name: 1, email: 1 } }
+            ),
+        ]);
+
+        // Send order notification to vendor
+        if (vendor?.email) {
+            await sendEmail({
+                to: vendor.email,
+                subject: "New Pizza Order - PizzaHub",
+                html: `
+            <h2>You have received a new order!</h2>
+            <p>Hello ${vendor.name || "Vendor"},</p>
+            <p>A customer has placed a new order for your menu item.</p>
+            <p><strong>Pizza:</strong> ${menuItem.itemName}</p>
+            <p><strong>Customer:</strong> ${customer?.name || "Customer"}</p>
+            <p><strong>Delivery Date:</strong> ${parsedDeliveryDate.toLocaleString()}</p>
+            <p><strong>Delivery Address:</strong> ${newOrder.deliveryAddress}</p>
+            <p><strong>Message:</strong> ${newOrder.message || "No additional message"}</p>
+            <p><strong>Order Status:</strong> Pending</p>
+            <p>Please log in to PizzaHub to manage this order.</p>
+        `,
+            });
+        }
+
 
         return res.status(201).json({
             success: true,
@@ -232,6 +267,57 @@ export const updateVendorOrderStatus = async (req, res) => {
             });
         }
 
+        // Get updated order information
+        const order = await db.collection("orders").findOne({
+            _id: new ObjectId(id),
+        });
+
+        // Get customer and menu item information
+        const [customer, menuItem] = await Promise.all([
+            db.collection("user").findOne(
+                { _id: new ObjectId(order.customerId) },
+                { projection: { name: 1, email: 1 } }
+            ),
+            db.collection("menuItems").findOne(
+                { _id: order.itemId },
+                { projection: { itemName: 1, price: 1 } }
+            ),
+        ]);
+
+        if (customer?.email) {
+            const isAccepted = status === "accepted";
+
+            await sendEmail({
+                to: customer.email,
+                subject: isAccepted
+                    ? "Your Pizza Order Has Been Accepted! 🍕"
+                    : "Your Pizza Order Has Been Rejected",
+                html: `
+            <h2>
+                ${isAccepted
+                        ? "Great News! Your Order Has Been Accepted."
+                        : "Sorry! Your Order Has Been Rejected."}
+            </h2>
+
+            <p>Hello ${customer.name || "Customer"},</p>
+
+            <p>
+                Your order for
+                <strong>${menuItem?.itemName || "Pizza"}</strong>
+                has been ${status}.
+            </p>
+
+            <p><strong>Order ID:</strong> ${id}</p>
+            <p><strong>Price:</strong> ${menuItem?.price ?? "N/A"}</p>
+            <p><strong>Delivery Date:</strong> ${order.deliveryDate.toLocaleString()}</p>
+            <p><strong>Delivery Address:</strong> ${order.deliveryAddress}</p>
+            <p><strong>Current Status:</strong> ${status.toUpperCase()}</p>
+
+            <p>Thank you for choosing PizzaHub!</p>
+        `,
+            });
+        }
+
         return res.status(200).json({
             success: true,
             message: `Order ${status} successfully.`,
@@ -340,6 +426,59 @@ export const cancelMyOrder = async (req, res) => {
                 success: false,
                 message: "Pending order not found or cannot be cancelled.",
             });
+        }
+
+        // Send cancellation notification to vendor
+        try {
+            // Get cancelled order information
+            const order = await db.collection("orders").findOne({
+                _id: new ObjectId(id),
+            });
+
+            if (order) {
+                // Get vendor and customer information
+                const [vendor, customer, menuItem] = await Promise.all([
+                    db.collection("user").findOne(
+                        { _id: new ObjectId(order.vendorId) },
+                        { projection: { name: 1, email: 1 } }
+                    ),
+                    db.collection("user").findOne(
+                        { _id: new ObjectId(order.customerId) },
+                        { projection: { name: 1 } }
+                    ),
+                    db.collection("menuItems").findOne(
+                        { _id: new ObjectId(order.itemId) },
+                        { projection: { itemName: 1, price: 1 } }
+                    ),
+                ]);
+
+                // Send email to vendor
+                if (vendor?.email) {
+                    await sendEmail({
+                        to: vendor.email,
+                        subject: "Pizza Order Cancelled - PizzaHub",
+                        html: `
+                    <h2>Order Cancellation Notification</h2>
+
+                    <p>Hello ${vendor.name || "Vendor"},</p>
+
+                    <p>A customer has cancelled their order.</p>
+
+                    <p><strong>Pizza:</strong> ${menuItem?.itemName || "Pizza"}</p>
+                    <p><strong>Customer:</strong> ${customer?.name || "Customer"}</p>
+                    <p><strong>Order ID:</strong> ${id}</p>
+                    <p><strong>Price:</strong> ${menuItem?.price ?? "N/A"}</p>
+                    <p><strong>Delivery Date:</strong> ${new Date(order.deliveryDate).toLocaleString()}</p>
+                    <p><strong>Delivery Address:</strong> ${order.deliveryAddress}</p>
+                    <p><strong>Status:</strong> CANCELLED</p>
+
+                    <p>Please log in to PizzaHub to view your updated orders.</p>
+                `,
+                    });
+                }
+            }
+        } catch (emailError) {
+            console.error("Vendor Cancellation Email Error:", emailError);
         }
 
         return res.status(200).json({
