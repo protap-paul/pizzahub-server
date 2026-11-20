@@ -1,5 +1,8 @@
 import express from "express";
-import { getAdminDashboardStats } from "../controllers/dashboardController.js";
+import {
+    getAdminDashboardStats,
+    getVendorDashboardStats,
+} from "../controllers/dashboardController.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { authorizeRoles } from "../middleware/authorizeRoles.js";
 
@@ -11,6 +14,14 @@ router.get(
     requireAuth,
     authorizeRoles("admin"),
     getAdminDashboardStats
+);
+
+// Vendor Dashboard Statistics
+router.get(
+    "/vendor",
+    requireAuth,
+    authorizeRoles("vendor"),
+    getVendorDashboardStats
 );
 
 export default router;

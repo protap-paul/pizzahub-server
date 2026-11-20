@@ -69,3 +69,103 @@ export const getAdminDashboardStats = async (req, res) => {
         });
     }
 };
+
+// Vendor: Get dashboard overview statistics
+export const getVendorDashboardStats = async (req, res) => {
+    try {
+        const db = getDB();
+
+        // Total menu items owned by this vendor
+        const totalMenuItems = await db
+            .collection("menuItems")
+            .countDocuments({ vendorId: req.user.id });
+
+        // Approved menu items owned by this vendor
+        const approvedMenuItems = await db
+            .collection("menuItems")
+            .countDocuments({
+                vendorId: req.user.id,
+                status: "approved",
+            });
+
+        // Pending menu items owned by this vendor
+        const pendingMenuItems = await db
+            .collection("menuItems")
+            .countDocuments({
+                vendorId: req.user.id,
+                status: "pending",
+            });
+
+        // Rejected menu items owned by this vendor
+        const rejectedMenuItems = await db
+            .collection("menuItems")
+            .countDocuments({
+                vendorId: req.user.id,
+                status: "rejected",
+            });
+
+        // Available menu items owned by this vendor
+        const availableMenuItems = await db
+            .collection("menuItems")
+            .countDocuments({
+                vendorId: req.user.id,
+                status: "approved",
+                isAvailable: true,
+            });
+
+        // Total orders received by this vendor
+        const totalOrders = await db
+            .collection("orders")
+            .countDocuments({
+                vendorId: req.user.id,
+            });
+
+        // Pending orders received by this vendor
+        const pendingOrders = await db
+            .collection("orders")
+            .countDocuments({
+                vendorId: req.user.id,
+                status: "pending",
+            });
+
+        // Accepted orders received by this vendor
+        const acceptedOrders = await db
+            .collection("orders")
+            .countDocuments({
+                vendorId: req.user.id,
+                status: "accepted",
+            });
+
+        // Rejected orders received by this vendor
+        const rejectedOrders = await db
+            .collection("orders")
+            .countDocuments({
+                vendorId: req.user.id,
+                status: "rejected",
+            });
+
+        return res.status(200).json({
+            success: true,
+            message: "Vendor dashboard statistics retrieved successfully.",
+            stats: {
+                totalMenuItems,
+                approvedMenuItems,
+                pendingMenuItems,
+                rejectedMenuItems,
+                availableMenuItems,
+                totalOrders,
+                pendingOrders,
+                acceptedOrders,
+                rejectedOrders,
+            },
+        });
+
+    } catch (error) {
+        console.error("Vendor Dashboard Stats Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to retrieve vendor dashboard statistics.",
+        });
+    }
+};
