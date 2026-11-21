@@ -1,9 +1,14 @@
+import { ObjectId } from "mongodb";
 import { jwtVerify, createRemoteJWKSet } from "jose";
 
 const authBaseURL = process.env.BETTER_AUTH_URL;
 
+if (!authBaseURL) {
+    throw new Error("BETTER_AUTH_URL is not configured!");
+}
+
 const JWKS = createRemoteJWKSet(
-    new URL(`${authBaseURL}/api/auth/jwks`)
+    new URL("/api/auth/jwks", authBaseURL)
 );
 
 export const verifyToken = async (req, res, next) => {
@@ -18,8 +23,19 @@ export const verifyToken = async (req, res, next) => {
             });
         }
 
-        // Extract JWT token
-        const token = authHeader.split(" ")[1];
+        // Extract and validate Bearer token
+        const [scheme, token, ...extraParts] = authHeader.trim().split(/\s+/);
+
+        if (
+            scheme !== "Bearer" ||
+            !token ||
+            extraParts.length > 0
+        ) {
+            return res.status(401).json({
+                success: false,
+                message: "Unauthorized: Invalid authorization header.",
+            });
+        }
 
         // Verify JWT signature and claims
         const { payload } = await jwtVerify(token, JWKS, {
@@ -28,10 +44,20 @@ export const verifyToken = async (req, res, next) => {
         });
 
         // Validate required user information
-        const userId = payload.id || payload.sub;
+        const userId = payload.id;
 
         if (
             typeof userId !== "string" ||
+            !ObjectId.isValid(userId) ||
+            new ObjectId(userId).toString() !== userId
+        ) {
+            return res.status(401).json({
+                success: false,
+                message: "Unauthorized: Invalid user ID in token.",
+            });
+        }
+
+        if (
             typeof payload.email !== "string" ||
             !["customer", "vendor", "admin"].includes(payload.role)
         ) {

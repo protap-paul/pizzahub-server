@@ -7,7 +7,11 @@ export const checkBlockedUser = async (req, res, next) => {
 
         const userId = req.user.id;
 
-        if (!ObjectId.isValid(userId)) {
+        if (
+            typeof userId !== "string" ||
+            !ObjectId.isValid(userId) ||
+            new ObjectId(userId).toString() !== userId
+        ) {
             return res.status(401).json({
                 success: false,
                 message: "Unauthorized: Invalid user ID.",

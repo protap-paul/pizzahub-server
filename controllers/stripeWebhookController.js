@@ -7,7 +7,11 @@ import { stripe } from "../config/stripe.js";
 const updateVendorSubscription = async (subscription, plan) => {
     const vendorId = subscription.metadata?.vendorId;
 
-    if (!vendorId || !ObjectId.isValid(vendorId)) {
+    if (
+        typeof vendorId !== "string" ||
+        !ObjectId.isValid(vendorId) ||
+        new ObjectId(vendorId).toString() !== vendorId
+    ) {
         throw new Error("Invalid vendor ID in subscription metadata.");
     }
 
@@ -38,18 +42,48 @@ const updateVendorSubscription = async (subscription, plan) => {
         updateData.subscriptionExpiresAt = null;
     }
 
+    // Match authenticated vendor
+    const filter = {
+        _id: new ObjectId(vendorId),
+        role: "vendor",
+    };
+
+    // Only cancel the subscription that is currently active in our database
+    if (plan === "free") {
+        filter.stripeSubscriptionId = subscription.id;
+    } else {
+        filter.$or = [
+            { stripeSubscriptionId: subscription.id },
+            { stripeSubscriptionId: { $exists: false } },
+            { stripeSubscriptionId: null },
+        ];
+    }
+
     const result = await db.collection("user").updateOne(
-        {
-            _id: new ObjectId(vendorId),
-            role: "vendor",
-        },
+        filter,
         {
             $set: updateData,
         }
     );
 
     if (result.matchedCount === 0) {
-        throw new Error("Vendor account not found.");
+        const vendorExists = await db.collection("user").findOne(
+            {
+                _id: new ObjectId(vendorId),
+                role: "vendor",
+            },
+            { projection: { _id: 1 } }
+        );
+
+        if (!vendorExists) {
+            throw new Error("Vendor account not found.");
+        }
+
+        console.log(
+            `Ignoring outdated subscription event: ${subscription.id}`
+        );
+
+        return;
     }
 
     console.log(
@@ -122,11 +156,24 @@ export const handleStripeWebhook = async (req, res) => {
 
         // 2. Subscription Updated / Renewed
         if (event.type === "customer.subscription.updated") {
-            const subscription = event.data.object;
+            const eventSubscription = event.data.object;
+
+            // Fetch the latest subscription status from Stripe
+            const subscription = await stripe.subscriptions.retrieve(
+                eventSubscription.id
+            );
 
             if (["active", "trialing"].includes(subscription.status)) {
                 await updateVendorSubscription(subscription, "premium");
+            } else if (
+                ["canceled", "unpaid", "incomplete_expired"].includes(
+                    subscription.status
+                )
+            ) {
+                await updateVendorSubscription(subscription, "free");
             }
+
+            // Keep the current plan unchanged for past_due status.
         }
 
         // 3. Subscription Deleted / Ended
