@@ -532,6 +532,48 @@ export const getMyMenuItems = async (req, res) => {
     }
 };
 
+
+// Get a single menu item owned by the logged-in vendor
+export const getMyMenuItemById = async (req, res) => {
+    try {
+        const db = getDB();
+        const { id } = req.params;
+
+        if (!isValidObjectId(id)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid menu item ID.",
+            });
+        }
+
+        const menuItem = await db.collection("menuItems").findOne({
+            _id: new ObjectId(id),
+            vendorId: req.user.id,
+        });
+
+        if (!menuItem) {
+            return res.status(404).json({
+                success: false,
+                message: "Menu item not found or you do not own this item.",
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Your menu item retrieved successfully.",
+            menuItem,
+        });
+    } catch (error) {
+        console.error("Get My Menu Item Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to retrieve your menu item.",
+        });
+    }
+};
+
+
 // Update vendor's own menu item
 export const updateMyMenuItem = async (req, res) => {
     try {

@@ -13,6 +13,7 @@ import {
     addMenuItemReview,
     getMenuItemReviews,
     getMenuItemById,
+    getMyMenuItemById,
 } from "../controllers/menuItemController.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { authorizeRoles } from "../middleware/authorizeRoles.js";
@@ -28,6 +29,13 @@ router.get(
     requireAuth,
     authorizeRoles("vendor"),
     getMyMenuItems
+);
+
+router.get(
+    "/my-items/:id",
+    requireAuth,
+    authorizeRoles("vendor"),
+    getMyMenuItemById
 );
 
 router.get(
