@@ -12,9 +12,12 @@ import {
     adminDeleteMenuItem,
     addMenuItemReview,
     getMenuItemReviews,
+    getMenuItemById,
 } from "../controllers/menuItemController.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { authorizeRoles } from "../middleware/authorizeRoles.js";
+import uploadImage from "../middleware/uploadImage.js";
+import { uploadMenuItemImage } from "../controllers/imageUploadController.js";
 
 const router = express.Router();
 
@@ -33,6 +36,8 @@ router.get(
     authorizeRoles("admin"),
     getAllMenuItems
 );
+
+router.get("/:id", requireAuth, getMenuItemById);
 
 router.get(
     "/:itemId/reviews",
@@ -53,6 +58,15 @@ router.post(
     requireAuth,
     authorizeRoles("customer"),
     addMenuItemReview
+);
+
+// Upload menu item image (Vendor only)
+router.post(
+    "/upload-image",
+    requireAuth,
+    authorizeRoles("vendor"),
+    uploadImage.single("image"),
+    uploadMenuItemImage
 );
 
 router.patch(

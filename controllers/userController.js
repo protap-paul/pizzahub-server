@@ -56,21 +56,65 @@ export const updateMyProfile = async (req, res) => {
 
         const updateData = {};
 
-        // Update name
-        if (typeof name === "string" && name.trim()) {
+        // Validate and update name
+        if (name !== undefined) {
+            if (
+                typeof name !== "string" ||
+                name.trim().length < 2 ||
+                name.trim().length > 50
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Name must be between 2 and 50 characters.",
+                });
+            }
+
             updateData.name = name.trim();
         }
 
-        // Update profile image
-        if (typeof image === "string") {
-            updateData.image = image.trim();
+        // Validate and update profile image
+        if (image !== undefined) {
+            if (typeof image !== "string") {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid profile image URL.",
+                });
+            }
+
+            const imageUrl = image.trim();
+
+            if (imageUrl) {
+                try {
+                    const parsedUrl = new URL(imageUrl);
+
+                    if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+                        throw new Error("Invalid URL protocol");
+                    }
+                } catch {
+                    return res.status(400).json({
+                        success: false,
+                        message: "Please provide a valid image URL.",
+                    });
+                }
+            }
+
+            updateData.image = imageUrl;
         }
 
-        // Update business name for vendors only
-        if (req.user.role === "vendor") {
-            if (typeof businessName === "string" && businessName.trim()) {
-                updateData.businessName = businessName.trim();
+        // Validate and update vendor business name
+        if (req.user.role === "vendor" && businessName !== undefined) {
+            if (
+                typeof businessName !== "string" ||
+                businessName.trim().length < 2 ||
+                businessName.trim().length > 80
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Business name must be between 2 and 80 characters.",
+                });
             }
+
+            updateData.businessName = businessName.trim();
         }
 
         if (Object.keys(updateData).length === 0) {
