@@ -4,10 +4,17 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY
+    ? new Resend(process.env.RESEND_API_KEY)
+    : null;
 
 export const sendEmail = async ({ to, subject, html }) => {
     try {
+        if (!resend) {
+            console.warn("Email service is not configured.");
+            return false;
+        }
+
         const isProduction = process.env.NODE_ENV === "production";
 
         // Development mode: Send test emails to verified address

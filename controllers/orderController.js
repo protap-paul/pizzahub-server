@@ -2,17 +2,27 @@ import { sendEmail } from "../utils/sendEmail.js";
 import { ObjectId } from "mongodb";
 import { getDB } from "../config/db.js";
 
+// Escape HTML characters for safe email templates
+const escapeHTML = (value = "") => {
+    return String(value).replace(/[&<>"']/g, (char) => {
+        const entities = {
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;",
+        };
+
+        return entities[char];
+    });
+};
+
 // Customer create a new order
 export const createOrder = async (req, res) => {
     try {
         const db = getDB();
 
-        const {
-            itemId,
-            deliveryDate,
-            deliveryAddress,
-            message,
-        } = req.body;
+        const { itemId, deliveryDate, deliveryAddress, message } = req.body;
 
         // Validate required fields
         if (
@@ -111,39 +121,45 @@ export const createOrder = async (req, res) => {
 
         const result = await db.collection("orders").insertOne(newOrder);
 
-
-        // Get vendor and customer information
-        const [vendor, customer] = await Promise.all([
-            db.collection("user").findOne(
-                { _id: new ObjectId(menuItem.vendorId) },
-                { projection: { name: 1, email: 1 } }
-            ),
-            db.collection("user").findOne(
-                { _id: new ObjectId(req.user.id) },
-                { projection: { name: 1, email: 1 } }
-            ),
-        ]);
-
         // Send order notification to vendor
-        if (vendor?.email) {
-            await sendEmail({
-                to: vendor.email,
-                subject: "New Pizza Order - PizzaHub",
-                html: `
-            <h2>You have received a new order!</h2>
-            <p>Hello ${vendor.name || "Vendor"},</p>
-            <p>A customer has placed a new order for your menu item.</p>
-            <p><strong>Pizza:</strong> ${menuItem.itemName}</p>
-            <p><strong>Customer:</strong> ${customer?.name || "Customer"}</p>
-            <p><strong>Delivery Date:</strong> ${parsedDeliveryDate.toLocaleString()}</p>
-            <p><strong>Delivery Address:</strong> ${newOrder.deliveryAddress}</p>
-            <p><strong>Message:</strong> ${newOrder.message || "No additional message"}</p>
-            <p><strong>Order Status:</strong> Pending</p>
-            <p>Please log in to PizzaHub to manage this order.</p>
-        `,
-            });
-        }
+        try {
+            // Get vendor and customer information
+            const [vendor, customer] = await Promise.all([
+                db
+                    .collection("user")
+                    .findOne(
+                        { _id: new ObjectId(menuItem.vendorId) },
+                        { projection: { name: 1, email: 1 } },
+                    ),
+                db
+                    .collection("user")
+                    .findOne(
+                        { _id: new ObjectId(req.user.id) },
+                        { projection: { name: 1, email: 1 } },
+                    ),
+            ]);
 
+            if (vendor?.email) {
+                await sendEmail({
+                    to: vendor.email,
+                    subject: "New Pizza Order - PizzaHub",
+                    html: `
+                <h2>You have received a new order!</h2>
+                <p>Hello ${escapeHTML(vendor.name || "Vendor")},</p>
+                <p>A customer has placed a new order for your menu item.</p>
+                <p><strong>Pizza:</strong> ${escapeHTML(menuItem.itemName)}</p>
+                <p><strong>Customer:</strong> ${escapeHTML(customer?.name || "Customer")}</p>
+                <p><strong>Delivery Date:</strong> ${escapeHTML(parsedDeliveryDate.toLocaleString())}</p>
+                <p><strong>Delivery Address:</strong> ${escapeHTML(newOrder.deliveryAddress)}</p>
+                <p><strong>Message:</strong> ${escapeHTML(newOrder.message || "No additional message")}</p>
+                <p><strong>Order Status:</strong> Pending</p>
+                <p>Please log in to PizzaHub to manage this order.</p>
+            `,
+                });
+            }
+        } catch (emailError) {
+            console.error("Order notification failed:", emailError);
+        }
 
         return res.status(201).json({
             success: true,
@@ -168,10 +184,7 @@ export const getVendorOrders = async (req, res) => {
 
         // Pagination
         const page = Math.max(1, Number(req.query.page) || 1);
-        const limit = Math.min(
-            50,
-            Math.max(1, Number(req.query.limit) || 10)
-        );
+        const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 10));
 
         const skip = (page - 1) * limit;
 
@@ -180,9 +193,7 @@ export const getVendorOrders = async (req, res) => {
             vendorId: req.user.id,
         };
 
-        const totalOrders = await db
-            .collection("orders")
-            .countDocuments(query);
+        const totalOrders = await db.collection("orders").countDocuments(query);
 
         const orders = await db
             .collection("orders")
@@ -257,7 +268,7 @@ export const updateVendorOrderStatus = async (req, res) => {
                         note: `Order ${status} by vendor.`,
                     },
                 },
-            }
+            },
         );
 
         if (result.matchedCount === 0) {
@@ -272,50 +283,66 @@ export const updateVendorOrderStatus = async (req, res) => {
             _id: new ObjectId(id),
         });
 
-        // Get customer and menu item information
-        const [customer, menuItem] = await Promise.all([
-            db.collection("user").findOne(
-                { _id: new ObjectId(order.customerId) },
-                { projection: { name: 1, email: 1 } }
-            ),
-            db.collection("menuItems").findOne(
-                { _id: order.itemId },
-                { projection: { itemName: 1, price: 1 } }
-            ),
-        ]);
-
-        if (customer?.email) {
-            const isAccepted = status === "accepted";
-
-            await sendEmail({
-                to: customer.email,
-                subject: isAccepted
-                    ? "Your Pizza Order Has Been Accepted! 🍕"
-                    : "Your Pizza Order Has Been Rejected",
-                html: `
-            <h2>
-                ${isAccepted
-                        ? "Great News! Your Order Has Been Accepted."
-                        : "Sorry! Your Order Has Been Rejected."}
-            </h2>
-
-            <p>Hello ${customer.name || "Customer"},</p>
-
-            <p>
-                Your order for
-                <strong>${menuItem?.itemName || "Pizza"}</strong>
-                has been ${status}.
-            </p>
-
-            <p><strong>Order ID:</strong> ${id}</p>
-            <p><strong>Price:</strong> ${menuItem?.price ?? "N/A"}</p>
-            <p><strong>Delivery Date:</strong> ${order.deliveryDate.toLocaleString()}</p>
-            <p><strong>Delivery Address:</strong> ${order.deliveryAddress}</p>
-            <p><strong>Current Status:</strong> ${status.toUpperCase()}</p>
-
-            <p>Thank you for choosing PizzaHub!</p>
-        `,
+        // Send order status notification to customer
+        try {
+            // Get updated order information
+            const order = await db.collection("orders").findOne({
+                _id: new ObjectId(id),
             });
+
+            if (order) {
+                // Get customer and menu item information
+                const [customer, menuItem] = await Promise.all([
+                    db
+                        .collection("user")
+                        .findOne(
+                            { _id: new ObjectId(order.customerId) },
+                            { projection: { name: 1, email: 1 } },
+                        ),
+                    db
+                        .collection("menuItems")
+                        .findOne(
+                            { _id: order.itemId },
+                            { projection: { itemName: 1, price: 1 } },
+                        ),
+                ]);
+
+                if (customer?.email) {
+                    const isAccepted = status === "accepted";
+
+                    await sendEmail({
+                        to: customer.email,
+                        subject: isAccepted
+                            ? "Your Pizza Order Has Been Accepted! 🍕"
+                            : "Your Pizza Order Has Been Rejected",
+                        html: `
+                    <h2>
+                        ${isAccepted
+                                ? "Great News! Your Order Has Been Accepted."
+                                : "Sorry! Your Order Has Been Rejected."}
+                    </h2>
+
+                    <p>Hello ${escapeHTML(customer.name || "Customer")},</p>
+
+                    <p>
+                        Your order for
+                        <strong>${escapeHTML(menuItem?.itemName || "Pizza")}</strong>
+                        has been ${escapeHTML(status)}.
+                    </p>
+
+                    <p><strong>Order ID:</strong> ${escapeHTML(id)}</p>
+                    <p><strong>Price:</strong> ${escapeHTML(menuItem?.price ?? "N/A")}</p>
+                    <p><strong>Delivery Date:</strong> ${escapeHTML(new Date(order.deliveryDate).toLocaleString())}</p>
+                    <p><strong>Delivery Address:</strong> ${escapeHTML(order.deliveryAddress)}</p>
+                    <p><strong>Current Status:</strong> ${escapeHTML(status.toUpperCase())}</p>
+
+                    <p>Thank you for choosing PizzaHub!</p>
+                `,
+                    });
+                }
+            }
+        } catch (emailError) {
+            console.error("Order status notification failed:", emailError);
         }
 
         return res.status(200).json({
@@ -338,10 +365,7 @@ export const getMyOrders = async (req, res) => {
         const db = getDB();
 
         const page = Math.max(1, Number(req.query.page) || 1);
-        const limit = Math.min(
-            50,
-            Math.max(1, Number(req.query.limit) || 10)
-        );
+        const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 10));
 
         const skip = (page - 1) * limit;
 
@@ -350,9 +374,7 @@ export const getMyOrders = async (req, res) => {
             customerId: req.user.id,
         };
 
-        const totalOrders = await db
-            .collection("orders")
-            .countDocuments(query);
+        const totalOrders = await db.collection("orders").countDocuments(query);
 
         const orders = await db
             .collection("orders")
@@ -418,7 +440,7 @@ export const cancelMyOrder = async (req, res) => {
                         note: "Order cancelled by customer.",
                     },
                 },
-            }
+            },
         );
 
         if (result.matchedCount === 0) {
@@ -438,18 +460,24 @@ export const cancelMyOrder = async (req, res) => {
             if (order) {
                 // Get vendor and customer information
                 const [vendor, customer, menuItem] = await Promise.all([
-                    db.collection("user").findOne(
-                        { _id: new ObjectId(order.vendorId) },
-                        { projection: { name: 1, email: 1 } }
-                    ),
-                    db.collection("user").findOne(
-                        { _id: new ObjectId(order.customerId) },
-                        { projection: { name: 1 } }
-                    ),
-                    db.collection("menuItems").findOne(
-                        { _id: new ObjectId(order.itemId) },
-                        { projection: { itemName: 1, price: 1 } }
-                    ),
+                    db
+                        .collection("user")
+                        .findOne(
+                            { _id: new ObjectId(order.vendorId) },
+                            { projection: { name: 1, email: 1 } },
+                        ),
+                    db
+                        .collection("user")
+                        .findOne(
+                            { _id: new ObjectId(order.customerId) },
+                            { projection: { name: 1 } },
+                        ),
+                    db
+                        .collection("menuItems")
+                        .findOne(
+                            { _id: new ObjectId(order.itemId) },
+                            { projection: { itemName: 1, price: 1 } },
+                        ),
                 ]);
 
                 // Send email to vendor
@@ -458,22 +486,22 @@ export const cancelMyOrder = async (req, res) => {
                         to: vendor.email,
                         subject: "Pizza Order Cancelled - PizzaHub",
                         html: `
-                    <h2>Order Cancellation Notification</h2>
+    <h2>Order Cancellation Notification</h2>
 
-                    <p>Hello ${vendor.name || "Vendor"},</p>
+    <p>Hello ${escapeHTML(vendor.name || "Vendor")},</p>
 
-                    <p>A customer has cancelled their order.</p>
+    <p>A customer has cancelled their order.</p>
 
-                    <p><strong>Pizza:</strong> ${menuItem?.itemName || "Pizza"}</p>
-                    <p><strong>Customer:</strong> ${customer?.name || "Customer"}</p>
-                    <p><strong>Order ID:</strong> ${id}</p>
-                    <p><strong>Price:</strong> ${menuItem?.price ?? "N/A"}</p>
-                    <p><strong>Delivery Date:</strong> ${new Date(order.deliveryDate).toLocaleString()}</p>
-                    <p><strong>Delivery Address:</strong> ${order.deliveryAddress}</p>
-                    <p><strong>Status:</strong> CANCELLED</p>
+    <p><strong>Pizza:</strong> ${escapeHTML(menuItem?.itemName || "Pizza")}</p>
+    <p><strong>Customer:</strong> ${escapeHTML(customer?.name || "Customer")}</p>
+    <p><strong>Order ID:</strong> ${escapeHTML(id)}</p>
+    <p><strong>Price:</strong> ${escapeHTML(menuItem?.price ?? "N/A")}</p>
+    <p><strong>Delivery Date:</strong> ${escapeHTML(new Date(order.deliveryDate).toLocaleString())}</p>
+    <p><strong>Delivery Address:</strong> ${escapeHTML(order.deliveryAddress)}</p>
+    <p><strong>Status:</strong> CANCELLED</p>
 
-                    <p>Please log in to PizzaHub to view your updated orders.</p>
-                `,
+    <p>Please log in to PizzaHub to view your updated orders.</p>
+`,
                     });
                 }
             }
@@ -501,10 +529,7 @@ export const getAllOrders = async (req, res) => {
         const db = getDB();
 
         const page = Math.max(1, Number(req.query.page) || 1);
-        const limit = Math.min(
-            50,
-            Math.max(1, Number(req.query.limit) || 10)
-        );
+        const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 10));
 
         const skip = (page - 1) * limit;
 
@@ -513,20 +538,13 @@ export const getAllOrders = async (req, res) => {
         const query = {};
 
         // Filter orders by status
-        const allowedStatuses = [
-            "pending",
-            "accepted",
-            "rejected",
-            "cancelled",
-        ];
+        const allowedStatuses = ["pending", "accepted", "rejected", "cancelled"];
 
         if (status && allowedStatuses.includes(status)) {
             query.status = status;
         }
 
-        const totalOrders = await db
-            .collection("orders")
-            .countDocuments(query);
+        const totalOrders = await db.collection("orders").countDocuments(query);
 
         const orders = await db
             .collection("orders")
