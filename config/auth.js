@@ -4,6 +4,19 @@ import { authDB, client } from "./db.js";
 import { createAuthMiddleware, APIError } from "better-auth/api";
 import { jwt } from "better-auth/plugins";
 
+const requiredAuthEnv = [
+    "BETTER_AUTH_URL",
+    "BETTER_AUTH_SECRET",
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+];
+
+for (const key of requiredAuthEnv) {
+    if (!process.env[key]) {
+        throw new Error(`${key} is missing from environment variables.`);
+    }
+}
+
 export const auth = betterAuth({
     database: mongodbAdapter(authDB, {
         client,
@@ -71,8 +84,18 @@ export const auth = betterAuth({
 
     hooks: {
         before: createAuthMiddleware(async (ctx) => {
+            // Prevent users from changing their role after registration
+            if (
+                ctx.path === "/update-user" &&
+                ctx.body?.role !== undefined
+            ) {
+                throw new APIError("FORBIDDEN", {
+                    message: "You are not allowed to change your account role.",
+                });
+            }
+
             // Only validate registration requests
-            if (ctx.path != "/sign-up/email") {
+            if (ctx.path !== "/sign-up/email") {
                 return;
             }
 
@@ -87,6 +110,12 @@ export const auth = betterAuth({
             if (!/[a-z]/.test(password)) {
                 throw new APIError("BAD_REQUEST", {
                     message: "Password must contain at least one lowercase letter.",
+                });
+            }
+
+            if (!/[A-Z]/.test(password)) {
+                throw new APIError("BAD_REQUEST", {
+                    message: "Password must contain at least one uppercase letter.",
                 });
             }
         }),

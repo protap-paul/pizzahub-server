@@ -1,3 +1,4 @@
+import "dotenv/config";
 import "./config/stripe.js";
 import express from "express";
 import cors from "cors";
@@ -13,10 +14,16 @@ import subscriptionRoutes from "./routes/subscriptionRoutes.js";
 import { handleStripeWebhook } from "./controllers/stripeWebhookController.js";
 import transactionRoutes from "./routes/transactionRoutes.js";
 
+if (!process.env.STRIPE_WEBHOOK_SECRET) {
+    throw new Error(
+        "STRIPE_WEBHOOK_SECRET is missing from environment variables."
+    );
+}
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-await connectToMongoDB()
+await connectToMongoDB();
 
 // Middleware
 app.use(cors({
@@ -60,6 +67,26 @@ app.get("/api/health", (req, res) => {
     res.status(200).json({
         success: true,
         message: "PizzaHub Server is running successfully!",
+    });
+});
+
+// 404 Not Found Handler
+app.use((req, res) => {
+    res.status(404).json({
+        success: false,
+        message: "API route not found.",
+    });
+});
+
+// Global Error Handler
+app.use((error, req, res, next) => {
+    console.error("Global Server Error:", error);
+
+    res.status(error.status || 500).json({
+        success: false,
+        message: error.status
+            ? error.message
+            : "Internal Server Error.",
     });
 });
 
